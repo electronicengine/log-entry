@@ -40,16 +40,40 @@
 
         function displayVariety($prefix){
             
-            $queryStr = "SELECT $prefix FROM `wp_entrylog` WHERE 1 ORDER BY date DESC LIMIT 3000;";
-            $results = makeSqlOp($queryStr);
-            $ar = array();
-           
-            foreach($results as $row)
-            {
-                array_push($ar, $row->$prefix);
+            $key = explode("?", $prefix);
+            $queryStr = " ";
+
+            if(count($key) == 2){
+                $pinned = explode("-", $key[1]);
+
+                if(count($pinned) == 2){
+                    $queryStr = "SELECT $key[0] FROM `wp_entrylog` WHERE  $pinned[0]='$pinned[1]' ORDER BY id DESC LIMIT 3000;";
+                                
+                    $results = makeSqlOp($queryStr);
+                    $ar = array();   
+                    $v = $key[0];
+                    
+                    foreach($results as $row)
+                    {
+                        array_push($ar, $row->$v );
+                    }
+                    
+                    makeArrayTable(array_unique($ar), $key[0]);
+                }
+
+            }else{
+                $queryStr = "SELECT $prefix FROM `wp_entrylog` WHERE 1 ORDER BY id DESC LIMIT 3000;";
+                
+                    $results = makeSqlOp($queryStr);
+                    $ar = array();        
+                    foreach($results as $row)
+                    {
+                        array_push($ar, $row->$prefix);
+                    }
+                    makeArrayTable(array_unique($ar), $prefix);
             }
-            
-            makeArrayTable(array_unique($ar), $prefix);
+
+
 
         }
 
@@ -69,9 +93,9 @@
             $interwal_prefix = explode("-", $prefix[1]);
 
             if(count($interwal_prefix) == 2){
-                $queryStr = "SELECT * FROM `wp_entrylog` WHERE $prefix[0] between '$interwal_prefix[0]' and '$interwal_prefix[1]';";
+                $queryStr = "SELECT * FROM `wp_entrylog` WHERE $prefix[0] between '$interwal_prefix[0]' and '$interwal_prefix[1]' ORDER BY id DESC LIMIT 3000;";
             }else{
-                $queryStr = "SELECT * FROM `wp_entrylog` WHERE $prefix[0]='$prefix[1]' LIMIT 3000;";
+                $queryStr = "SELECT * FROM `wp_entrylog` WHERE $prefix[0]='$prefix[1]' ORDER BY id DESC LIMIT 3000;";
             }
     
             $results = makeSqlOp($queryStr);
@@ -115,6 +139,7 @@
             ?>
             <table BORDER=”2″ CELLPADDING=”10″>
                 <tr>
+                    <th>row</th>
                     <th>type</th>
                     <th>duration</th>
                     <th>page</th>
@@ -130,9 +155,11 @@
 
             if(!empty($Params))                        // Checking if $results have some values or not
             {    
+                $count = 0;
                 foreach($Params as $row){  
                     ?>
                     <tr>
+                        <td><?php echo $count++; ?></td>
                         <td><?php echo $row->type; ?></td>
                         <td><?php echo $row->duration; ?></td>
                         <td><?php echo $row->page; ?></td>
@@ -159,6 +186,7 @@
             ?>
             <table BORDER=”2″ CELLPADDING=”10″>
                 <tr>
+                    <th>row</th>
                     <?php
                         echo '<th>' .$Column. '</th>';
                     ?>
@@ -168,9 +196,11 @@
 
             if(!empty($Params))                        // Checking if $results have some values or not
             {    
+                $count = 0;
                 foreach($Params as $row){  
                     ?>
                     <tr>
+                        <td><?php echo $count++; ?></td>
                         <td><?php echo $row; ?></td>
                     </tr>
                     <?php
