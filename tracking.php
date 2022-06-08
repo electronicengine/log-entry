@@ -28,7 +28,7 @@ header('Content-Type: application/json');
 
 require_once($_SERVER['DOCUMENT_ROOT'].'/wp-load.php');
 
-writeToDatabase($_POST['Type'], $_POST['Ip'],  $_POST['Name'],  $_POST['Duration'], $_POST['Country'], $_POST['City']);
+writeToDatabase($_POST['Type'], $_POST['Ip'],  $_POST['Name'],  $_POST['Duration'], $_POST['Country'], $_POST['City'], $_POST['Device']);
 
 
 function writeToFile($type, $ip, $name, $duration, $country, $city)
@@ -62,7 +62,7 @@ function writeToFile($type, $ip, $name, $duration, $country, $city)
 
 
 
-function writeToDatabase($type, $ip, $name, $duration, $country, $city)
+function writeToDatabase($type, $ip, $name, $duration, $country, $city, $device)
 {
 	$date = date("Y/m/d");
 	$time = date("h:i:sa");
@@ -72,16 +72,15 @@ function writeToDatabase($type, $ip, $name, $duration, $country, $city)
 	global $charset_collate;
 	$charset_collate = $wpdb->get_charset_collate();
 	global $db_version;
-    $ty = 0;
-    if($type == "close")
-        $ty = 1;
+
 
 	$wpdb->insert($table_name, array(
 		'id' => NULL,
-		'type' => $ty,
+		'type' => $type,
 		'duration' => $duration,
 		'page' => utf8_encode($name),
 		'ip' => utf8_encode($ip),
+		'device' => utf8_encode($device),
 		'country' => utf8_encode($country),
 		'city' => utf8_encode($city),
 		'date' => utf8_encode($date),
