@@ -8,6 +8,8 @@
  * 
  */
 
+add_filter('show_admin_bar', '__return_false');
+
 add_action('template_redirect', 'pageLoad');
 function pageLoad(){
 
@@ -37,58 +39,22 @@ register_activation_hook(__FILE__, 'log_plugin_activation');
 
  function logEntryMenu()
  {
-    require_once($_SERVER['DOCUMENT_ROOT'].'/wp-load.php');
-    global $wpdb;
-    $table_name = $wpdb->prefix. "entrylog";
-    $results = $wpdb->get_results( "SELECT * FROM $table_name ORDER BY id DESC LIMIT 3000;" );
+
+    require 'logoptions.php';
 
     ?>
     <form action="../wp-content/plugins/log-entry/logoptions.php" method="post">
-        <input id='search' name='search' type='text' value='search prefix' />
-        <input id='delete' name='delete' type='text' value='delete prefix' />
+        <label for="fname">Search Prefix:</label>
+        <input id='search' name='search' type='text' value='' />
+        <label for="fname">Delete Prefix:</label>
+        <input id='delete' name='delete' type='text' value='' />
         <input name="submit" class="button button-primary" type="submit" value="Get Result" />
     </form>
-    <table BORDER=”2″ CELLPADDING=”10″>
-        <tr>
-            <th>type</th>
-            <th>duration</th>
-            <th>page</th>
-            <th>ip</th>
-            <th>country</th>
-            <th>city</th>
-            <th>time</th>
-            <th>date</th>
-        </tr>
-       
-    <?php
-
-    if(!empty($results))                        // Checking if $results have some values or not
-    {    
-        foreach($results as $row){  
-            ?>
-            <tr>
-                <td><?php echo $row->type; ?></td>
-                <td><?php echo $row->duration; ?></td>
-                <td><?php echo $row->page; ?></td>
-                <td><?php echo $row->ip; ?></td>
-                <td><?php echo $row->country; ?></td>
-                <td><?php echo $row->city; ?></td>
-                <td><?php echo $row->time; ?></td>
-                <td><?php echo $row->date; ?></td>
-            </tr>
-            <?php
-        }
-   
-    }
-
-    ?></table>
-    
+    <br>
 
     <?php
 
-
-
-
+    showLastRecords();
  }
 
  
@@ -107,11 +73,12 @@ register_activation_hook(__FILE__, 'log_plugin_activation');
         $create_sql = "CREATE TABLE " . $table_name . " (
             id INT(11) NOT NULL auto_increment,
             type INT(4) NOT NULL ,
-            duration INT(10) NOT NULL,
-            page VARCHAR(40) NOT NULL,
+            duration INT(11) NOT NULL,
+            page VARCHAR(120) NOT NULL,
             ip VARCHAR(15) NOT NULL,
-            country VARCHAR(15) NOT NULL ,
-            city VARCHAR(15) NOT NULL,
+            device VARCHAR(15) NOT NULL,
+            country VARCHAR(120) NOT NULL ,
+            city VARCHAR(120) NOT NULL,
             date VARCHAR(15) NOT NULL,
             time VARCHAR(15) NOT NULL default '0',
             PRIMARY KEY (id))$charset_collate;";
@@ -133,6 +100,15 @@ register_activation_hook(__FILE__, 'log_plugin_activation');
 
 
 
+ function console_log($output) {
+    $js_code = 'console.log(' . json_encode($output, JSON_HEX_TAG) . 
+');';
+
+    $js_code = '<script>' . $js_code . '</script>';
+    
+    echo $js_code;
+}
+
 function logUserEntryInfo($title) {
 
 
@@ -147,24 +123,27 @@ function logUserEntryInfo($title) {
 	}
 
 	$filtered = apply_filters( 'wpb_get_ip', $ip );
-	logTheInfo($filtered, $title);
-		
+
+    $current_user = wp_get_current_user(); 
+
+    console_log($current_user->ID);
+    if ( 0 == $current_user->ID ) {
+            logTheInfo($filtered, $title);
+    }
+
 }
 
 
 function logTheInfo($ip, $name)
 {
-    $type = "close";
-    $duration = 123;
 	$country =  ipLocInfo("Visitor", "Country");
 	$city = ipLocInfo("Visitor", "City"); 
 	$date = date("Y/m/d");
 	$time = date("h:i:sa");
-    $unixTime = time();
     
     ?><script>
 
-        var type = "<?php echo $type; ?>";
+        var type = 0;
         var duration = 0;
         var ip = "<?php echo $ip; ?>";
         var name = "<?php echo $name; ?>";
@@ -172,7 +151,9 @@ function logTheInfo($ip, $name)
         var city = "<?php echo $city ?>";
         var date = "<?php echo $date ?>";
         var time = "<?php echo $time ?>";
-        var unixtime = <?php echo $unixTime; ?>;
+        var device = deviceType();
+        var isUserAdmin = "<? $current_user->ID  ?>"; 
+        
         var url_post = "wp-content/themes/vilva/tracking.php";
         var log_saved = false;
 
@@ -182,12 +163,18 @@ function logTheInfo($ip, $name)
             url_post = "../../../../wp-content/plugins/log-entry/tracking.php";
         }
 
-        var t = setTimeout(timerFunc, 1000)
+        document.addEventListener("visibilitychange", function() {
+            if (document.visibilityState === 'visible') {
+                type = 2;
+                sendPostReq();
+            } else {
+                type = 1;
+                sendPostReq();           
+            }
+        });
 
-        window.onbeforeunload = function () {
-            type = "close";
-            sendPostReq();
-        };
+        var t = setTimeout(timerFunc, 1000);
+
 
         function timerFunc()
         {
@@ -195,13 +182,23 @@ function logTheInfo($ip, $name)
             setTimeout(timerFunc, 1000);
 
             if(duration > 2 && log_saved == false){
-                type = "start";
+                type = 0;
                 sendPostReq();
+                    
                 log_saved = true;
             }
 
         }
 
+        function deviceType(){
+            if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(navigator.userAgent)) {
+                return "tablet";
+            }
+            else if (/Mobile|Android|iP(hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(navigator.userAgent)) {
+                return "mobile";
+            }
+            return "desktop";
+        };
 
         function sendPostReq()
         {
@@ -210,7 +207,7 @@ function logTheInfo($ip, $name)
                 type: "POST",
                 url: url_post,
                 dataType: 'json',
-                data: {Type: type, Duration: duration, Ip: ip, Name: name, Country: country, City: city, Data: date, Time: time, UnixTime: unixtime },
+                data: {Type: type, Duration: duration, Ip: ip, Name: name, Country: country, City: city, Data: date, Time: time, Device: device},
 
                 success: function (obj, textstatus) {
                   if( !('error' in obj) ) {
@@ -223,7 +220,8 @@ function logTheInfo($ip, $name)
 
         }
         
-    </script><?php
+    </script>
+    <?php
 }
 
 function ipLocInfo($ip = NULL, $purpose = "location", $deep_detect = TRUE) {
